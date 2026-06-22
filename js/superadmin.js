@@ -1,4 +1,4 @@
-import db from '../db.js';
+import db from './db.js';
 
 let activeSATab = 'overview';
 
@@ -99,6 +99,17 @@ async function render(container) {
     const todayTx = transactions.filter(t => t.timestamp.startsWith(todayStr));
     const todayRevenue = todayTx.reduce((s, t) => s + t.total, 0);
 
+    if (window.registerSubTabs) {
+        window.registerSubTabs([
+            { key: 'overview', label: 'Overview', icon: '🏠', active: activeSATab === 'overview', onClick: "window.switchSATab('overview')" },
+            { key: 'users', label: 'Kasir', icon: '🔑', active: activeSATab === 'users', onClick: "window.switchSATab('users')" },
+            { key: 'products', label: 'Produk', icon: '📦', active: activeSATab === 'products', onClick: "window.switchSATab('products')" },
+            { key: 'members', label: 'Member', icon: '👥', active: activeSATab === 'members', onClick: "window.switchSATab('members')" },
+            { key: 'transactions', label: 'Transaksi', icon: '📋', active: activeSATab === 'transactions', onClick: "window.switchSATab('transactions')" },
+            { key: 'database', label: 'Database', icon: '🗄️', active: activeSATab === 'database', onClick: "window.switchSATab('database')" }
+        ]);
+    }
+
     container.innerHTML = `
         <style>
             /* Menyembunyikan scrollbar untuk pengalaman mobile yang lebih bersih pada Tab bar */
@@ -146,25 +157,6 @@ async function render(container) {
                     <p class="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider truncate">Katalog</p>
                     <p class="text-base md:text-lg font-black text-amber-300 truncate">${products.length} SKU</p>
                     <p class="text-[9px] md:text-[10px] text-slate-500 mt-0.5">${opnameLogs.length} log opname</p>
-                </div>
-            </div>
-
-            <!-- Nav Tabs - Diubah menjadi scrollable di mobile -->
-            <div class="overflow-x-auto hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0 mb-6">
-                <div class="flex gap-2 w-max bg-white/5 p-1.5 rounded-2xl border border-white/10">
-                    ${['overview','users','products','members','transactions','database'].map(tab => `
-                        <button onclick="window.switchSATab('${tab}')"
-                            class="px-4 py-2.5 md:py-2 rounded-xl text-xs md:text-sm font-bold transition whitespace-nowrap ${activeSATab === tab ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50' : 'text-slate-400 hover:text-white hover:bg-white/10'}">
-                            ${{
-                                overview: '🏠 Overview',
-                                users: '🔑 Kasir',
-                                products: '📦 Produk',
-                                members: '👥 Member',
-                                transactions: '📋 Transaksi',
-                                database: '🗄️ Database'
-                            }[tab]}
-                        </button>
-                    `).join('')}
                 </div>
             </div>
 

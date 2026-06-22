@@ -38,6 +38,14 @@ function getStoreNum(storeId) {
 }
 
 async function render(container) {
+    if (window.registerSubTabs) {
+        window.registerSubTabs([
+            { key: 'kasir', label: 'Kasir', icon: '🛒', active: activeTab === 'kasir', onClick: "window.switchTab('kasir')" },
+            { key: 'piutang', label: 'Piutang', icon: '📋', active: activeTab === 'piutang', onClick: "window.switchTab('piutang')" },
+            { key: 'pengeluaran', label: 'Pengeluaran', icon: '💰', active: activeTab === 'pengeluaran', onClick: "window.switchTab('pengeluaran')" },
+            { key: 'riwayat', label: 'Riwayat', icon: '🕐', active: activeTab === 'riwayat', onClick: "window.switchTab('riwayat')" }
+        ]);
+    }
     // Render berdasarkan tab aktif
     if (activeTab === 'kasir') {
         await renderKasir(container);
@@ -83,22 +91,6 @@ async function renderKasir(container) {
 
     container.innerHTML = `
         <div class="space-y-3">
-            <!-- TAB NAVIGATION -->
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-1 flex gap-1 sticky top-14 z-20 overflow-x-auto scrollbar-hide">
-                <button onclick="window.switchTab('kasir')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition ${activeTab === 'kasir' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
-                    <span class="text-base leading-none">🛒</span><span class="hidden sm:inline">Kasir</span><span class="sm:hidden text-[10px]">Kasir</span>
-                </button>
-                <button onclick="window.switchTab('piutang')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition ${activeTab === 'piutang' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
-                    <span class="text-base leading-none">📋</span><span class="hidden sm:inline">Piutang</span><span class="sm:hidden text-[10px]">Piutang</span>
-                </button>
-                <button onclick="window.switchTab('pengeluaran')" class="flex-1 min-w-[80px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition ${activeTab === 'pengeluaran' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
-                    <span class="text-base leading-none">💰</span><span class="hidden sm:inline">Pengeluaran</span><span class="sm:hidden text-[10px]">Keluar</span>
-                </button>
-                <button onclick="window.switchTab('riwayat')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition ${activeTab === 'riwayat' ? 'bg-indigo-600 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
-                    <span class="text-base leading-none">🕐</span><span class="hidden sm:inline">Riwayat</span><span class="sm:hidden text-[10px]">Riwayat</span>
-                </button>
-            </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-200px)]">
                 
                 <!-- SEKSI KIRI: KATALOG PRODUK (lg:col-span-7) -->
@@ -239,7 +231,7 @@ async function renderKasir(container) {
                         <div class="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col gap-3">
                             <div class="flex items-center gap-2">
                                 <span class="text-lg">🏷️</span>
-                                <input type="number" id="manual-discount" placeholder="Diskon manual" value="${manualDiscountValue || ''}" oninput="window.setManualDiscount(this.value)" class="flex-1 w-full bg-transparent border-none text-sm dark:text-white font-bold focus:outline-none focus:ring-0">
+                                <input type="number" id="manual-discount" placeholder="Diskon manual" value="${manualDiscountValue || ''}" onchange="window.setManualDiscount(this.value)" class="flex-1 w-full bg-transparent border-none text-sm dark:text-white font-bold focus:outline-none focus:ring-0">
                                 <div class="flex bg-gray-100 dark:bg-gray-900 p-0.5 rounded-lg text-xs border dark:border-gray-700 shrink-0">
                                     <button onclick="window.setDiscountType('rp')" class="px-3 py-1.5 rounded-md font-bold transition ${discountType === 'rp' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900' }">Rp</button>
                                     <button onclick="window.setDiscountType('percent')" class="px-3 py-1.5 rounded-md font-bold transition ${discountType === 'percent' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900' }">%</button>
@@ -248,7 +240,7 @@ async function renderKasir(container) {
                             <div class="h-px bg-gray-100 dark:bg-gray-700"></div>
                             <div class="flex items-center gap-2">
                                 <span class="text-lg">🛠️</span>
-                                <input type="number" id="service-fee" placeholder="Biaya Jasa (Kapas, dll)" value="${serviceFeeValue || ''}" oninput="window.setServiceFee(this.value)" class="flex-1 w-full bg-transparent border-none text-sm dark:text-white font-bold focus:outline-none focus:ring-0">
+                                <input type="number" id="service-fee" placeholder="Biaya Jasa (Kapas, dll)" value="${serviceFeeValue || ''}" onchange="window.setServiceFee(this.value)" class="flex-1 w-full bg-transparent border-none text-sm dark:text-white font-bold focus:outline-none focus:ring-0">
                             </div>
                         </div>
                     </div>
@@ -324,22 +316,6 @@ async function renderPiutang(container) {
 
     container.innerHTML = `
         <div class="space-y-3 animate-fadeInUp">
-            <!-- TAB NAVIGATION -->
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-1 flex gap-1 sticky top-14 z-20 overflow-x-auto scrollbar-hide">
-                <button onclick="window.switchTab('kasir')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">🛒</span><span class="text-[10px] sm:text-xs">Kasir</span>
-                </button>
-                <button onclick="window.switchTab('piutang')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-indigo-600 text-white shadow-md">
-                    <span class="text-base leading-none">📋</span><span class="text-[10px] sm:text-xs">Piutang</span>
-                </button>
-                <button onclick="window.switchTab('pengeluaran')" class="flex-1 min-w-[80px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">💰</span><span class="text-[10px] sm:text-xs">Keluar</span>
-                </button>
-                <button onclick="window.switchTab('riwayat')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">🕐</span><span class="text-[10px] sm:text-xs">Riwayat</span>
-                </button>
-            </div>
-
             <!-- STAT CARDS: horizontal scroll on mobile -->
             <div class="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
                 <div class="shrink-0 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 min-w-[140px]">
@@ -447,22 +423,6 @@ async function renderPengeluaran(container) {
 
     container.innerHTML = `
         <div class="space-y-3 animate-fadeInUp">
-            <!-- TAB NAVIGATION -->
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-1 flex gap-1 sticky top-14 z-20 overflow-x-auto scrollbar-hide">
-                <button onclick="window.switchTab('kasir')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">🛒</span><span class="text-[10px] sm:text-xs">Kasir</span>
-                </button>
-                <button onclick="window.switchTab('piutang')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">📋</span><span class="text-[10px] sm:text-xs">Piutang</span>
-                </button>
-                <button onclick="window.switchTab('pengeluaran')" class="flex-1 min-w-[80px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-indigo-600 text-white shadow-md">
-                    <span class="text-base leading-none">💰</span><span class="text-[10px] sm:text-xs">Keluar</span>
-                </button>
-                <button onclick="window.switchTab('riwayat')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">🕐</span><span class="text-[10px] sm:text-xs">Riwayat</span>
-                </button>
-            </div>
-
             <!-- STAT CARD + TOTAL -->
             <div class="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-lg shadow-orange-200 dark:shadow-none">
                 <p class="text-xs font-bold uppercase opacity-80 mb-1">Total Pengeluaran ${expenseCategory !== 'Semua' ? `· ${expenseCategory}` : 'Semua'}</p>
@@ -599,6 +559,7 @@ window.setServiceFee = function(value) {
 
 window.selectPaymentMethod = function(method) {
     paymentMethod = method;
+    render(document.getElementById('app-container'));
 };
 
 window.addToCart = async function(productId) {
@@ -1225,22 +1186,6 @@ async function renderRiwayat(container) {
 
     container.innerHTML = `
         <div class="space-y-3 animate-fadeInUp">
-            <!-- TAB NAVIGATION -->
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-1 flex gap-1 sticky top-14 z-20 overflow-x-auto scrollbar-hide">
-                <button onclick="window.switchTab('kasir')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">🛒</span><span class="text-[10px] sm:text-xs">Kasir</span>
-                </button>
-                <button onclick="window.switchTab('piutang')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">📋</span><span class="text-[10px] sm:text-xs">Piutang</span>
-                </button>
-                <button onclick="window.switchTab('pengeluaran')" class="flex-1 min-w-[80px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <span class="text-base leading-none">💰</span><span class="text-[10px] sm:text-xs">Keluar</span>
-                </button>
-                <button onclick="window.switchTab('riwayat')" class="flex-1 min-w-[70px] flex flex-col sm:flex-row items-center justify-center gap-1 py-2.5 px-3 rounded-xl font-bold text-xs transition bg-indigo-600 text-white shadow-md">
-                    <span class="text-base leading-none">🕐</span><span class="text-[10px] sm:text-xs">Riwayat</span>
-                </button>
-            </div>
-
             <!-- STAT CARDS: horizontal scroll on mobile -->
             <div class="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
                 <div class="shrink-0 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 min-w-[140px]">
@@ -1674,10 +1619,13 @@ window.showReceiptModal = async function(txId, isNewCheckout = false) {
             </div>
             
             ${isNewCheckout ? `
-            <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl border-t border-gray-100 dark:border-gray-800">
-                <button onclick="document.getElementById('receipt-modal-overlay').remove()" class="w-full py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-95 font-bold rounded-xl transition shadow-lg text-sm tracking-wide">Tutup Nota</button>
+            <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl border-t border-gray-100 dark:border-gray-800 flex gap-3">
+                <button onclick="window.printReceipt('${txId}')" class="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg text-sm tracking-wide flex items-center justify-center gap-2 active:scale-95">
+                    <span>🖨️</span> Print Struk
+                </button>
+                <button onclick="document.getElementById('receipt-modal-overlay').remove()" class="flex-1 py-3.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 active:scale-95 font-bold rounded-xl transition shadow-lg text-sm tracking-wide">Tutup Nota</button>
             </div>
-            ` : ''}
+        ` : ''}
         </div>
     `;
     
@@ -1686,6 +1634,227 @@ window.showReceiptModal = async function(txId, isNewCheckout = false) {
     });
     
     document.body.appendChild(overlay);
+};
+
+window.printReceipt = async function(txId) {
+    const tx = await db.transactions.get(txId);
+    if (!tx) return alert('Data transaksi tidak ditemukan.');
+ 
+    const items = await db.transactionItems.where('transactionId').equals(txId).toArray();
+    
+    // Get product names if missing
+    for (const item of items) {
+        if (!item.name) {
+            const prod = await db.products.get(item.productId);
+            item.name = prod ? prod.name : 'Produk Dihapus';
+        }
+    }
+ 
+    const tgl = new Date(tx.timestamp);
+    const tglStr = tgl.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const jamStr = tgl.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+ 
+    // Create print window
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Struk ${tx.id}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Courier New', monospace;
+                    background: #fff;
+                    padding: 0;
+                }
+                .receipt {
+                    width: 80mm;
+                    margin: 0 auto;
+                    padding: 10mm;
+                    background: white;
+                    color: #000;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px dashed #000;
+                    padding-bottom: 8mm;
+                    margin-bottom: 8mm;
+                }
+                .store-name {
+                    font-size: 18pt;
+                    font-weight: bold;
+                    letter-spacing: 2px;
+                    margin-bottom: 2mm;
+                }
+                .store-info {
+                    font-size: 8pt;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 4mm;
+                }
+                .datetime {
+                    font-size: 8pt;
+                    margin-bottom: 2mm;
+                }
+                .receipt-id {
+                    font-size: 7pt;
+                    font-weight: bold;
+                }
+                .member-info {
+                    font-size: 8pt;
+                    background: #f5f5f5;
+                    padding: 3mm;
+                    margin-bottom: 5mm;
+                    border: 1px solid #ddd;
+                }
+                .items {
+                    border-bottom: 2px dashed #000;
+                    padding-bottom: 8mm;
+                    margin-bottom: 8mm;
+                }
+                .item {
+                    font-size: 9pt;
+                    margin-bottom: 3mm;
+                }
+                .item-name {
+                    font-weight: bold;
+                    margin-bottom: 1mm;
+                }
+                .item-detail {
+                    font-size: 8pt;
+                    color: #333;
+                }
+                .item-price {
+                    display: flex;
+                    justify-content: space-between;
+                    font-weight: bold;
+                    margin-top: 1mm;
+                }
+                .totals {
+                    border-bottom: 2px dashed #000;
+                    padding-bottom: 8mm;
+                    margin-bottom: 8mm;
+                }
+                .total-row {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 9pt;
+                    margin-bottom: 2mm;
+                }
+                .total-row.discount {
+                    color: #d32f2f;
+                }
+                .total-row.fee {
+                    color: #f57c00;
+                }
+                .total-final {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin: 4mm 0;
+                }
+                .payment-method {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 8pt;
+                    margin-top: 2mm;
+                }
+                .footer {
+                    text-align: center;
+                    font-size: 8pt;
+                    margin-top: 8mm;
+                    color: #666;
+                }
+                .thank-you {
+                    font-weight: bold;
+                    margin-bottom: 2mm;
+                }
+                @media print {
+                    body { padding: 0; }
+                    .receipt { width: 80mm; margin: 0; padding: 5mm; }
+                }
+                @page {
+                    size: 80mm auto;
+                    margin: 0;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <div class="header">
+                    <div class="store-name">MVAPE</div>
+                    <div class="store-info">${tx.storeBranch || 'Toko 1'}</div>
+                    <div class="datetime">${tglStr} ${jamStr}</div>
+                    <div class="receipt-id">No: ${tx.id}</div>
+                </div>
+ 
+                ${tx.memberName ? `
+                <div class="member-info">
+                    <strong>Member:</strong> ${tx.memberName}
+                </div>
+                ` : ''}
+ 
+                <div class="items">
+                    ${items.map(item => `
+                        <div class="item">
+                            <div class="item-name">${item.name.toUpperCase()}</div>
+                            <div class="item-detail">${item.quantity} x Rp ${(item.subtotal / item.quantity).toLocaleString('id-ID')}</div>
+                            ${item.notes ? `<div class="item-detail" style="color: #999;">Catatan: ${item.notes}</div>` : ''}
+                            <div class="item-price">
+                                <span></span>
+                                <span>Rp ${item.subtotal.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+ 
+                <div class="totals">
+                    <div class="total-row">
+                        <span>SUBTOTAL</span>
+                        <span>Rp ${(tx.subtotal || 0).toLocaleString('id-ID')}</span>
+                    </div>
+                    ${tx.discount > 0 ? `
+                    <div class="total-row discount">
+                        <span>DISKON</span>
+                        <span>- Rp ${tx.discount.toLocaleString('id-ID')}</span>
+                    </div>
+                    ` : ''}
+                    ${tx.serviceFee > 0 ? `
+                    <div class="total-row fee">
+                        <span>BIAYA JASA</span>
+                        <span>+ Rp ${tx.serviceFee.toLocaleString('id-ID')}</span>
+                    </div>
+                    ` : ''}
+                    <div class="total-final">
+                        <span>TOTAL</span>
+                        <span>Rp ${tx.total.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div class="payment-method">
+                        <span>Pembayaran:</span>
+                        <span><strong>${tx.paymentMethod}</strong></span>
+                    </div>
+                </div>
+ 
+                <div class="footer">
+                    <div class="thank-you">Terima kasih atas kunjungan Anda!</div>
+                    <div>---</div>
+                </div>
+            </div>
+ 
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => window.close(), 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 };
 
 export default { render };

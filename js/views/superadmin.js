@@ -166,26 +166,6 @@ async function render(container) {
                 </div>
             </div>
 
-            <!-- Nav Tabs -->
-            <div class="overflow-x-auto hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0 mb-6">
-                <div class="flex gap-2 w-max bg-slate-200/50 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200 dark:border-white/10">
-                    ${['overview','users','products','members','transactions','database','settings'].map(tab => `
-                        <button onclick="window.switchSATab('${tab}')"
-                            class="px-4 py-2.5 md:py-2 rounded-xl text-xs md:text-sm font-bold transition whitespace-nowrap ${activeSATab === tab ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30 dark:shadow-purple-900/50' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10'}">
-                            ${{
-                                overview: '🏠 Overview',
-                                users: '🔑 Kasir',
-                                products: '📦 Produk',
-                                members: '👥 Member',
-                                transactions: '📋 Transaksi',
-                                database: '🗄️ Database',
-                                settings: '🎨 Pengaturan'
-                            }[tab]}
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-
             <!-- Tab Content -->
             <div id="sa-tab-content" class="flex-1 flex flex-col"></div>
         </div>

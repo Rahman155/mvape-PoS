@@ -1,4 +1,4 @@
-import db from '../db.js';
+﻿import db from '../db.js';
 
 // Menyimpan status tab aktif saat ini
 let activeOwnerTab = 'finance'; 
@@ -18,6 +18,14 @@ let financeFilterDate  = new Date().toISOString().split('T')[0];          // YYY
 let financeFilterMonth = new Date().toISOString().substring(0, 7);        // YYYY-MM
 let financeFilterYear  = String(new Date().getFullYear());                 // YYYY
 let financeFilterStore = 'semua';  // 'semua' | nama toko
+
+// State filter laporan per toko
+let storeFilterMode = 'bulanan';   // 'harian' | 'mingguan' | 'bulanan' | 'tahunan'
+let storeFilterDate  = new Date().toISOString().split('T')[0];          // YYYY-MM-DD
+let storeFilterWeek  = '';                                                 // YYYY-Www (diisi dinamis)
+let storeFilterMonth = new Date().toISOString().substring(0, 7);        // YYYY-MM
+let storeFilterYear  = String(new Date().getFullYear());                 // YYYY
+
 // Simpan data transaksi & pengeluaran terakhir agar bisa di-refresh tanpa re-fetch
 let _financeCache = { transactions: [], expenses: [], transactionItems: [], products: [], receivables: [] };
 // Mode grafik aktif (daily | monthly | yearly)
@@ -25,22 +33,37 @@ if (!window._salesChartMode) window._salesChartMode = 'daily';
 let editingUserId = null;
 let editingStoreId = null;
 
-// ── Konfigurasi visibilitas tab (persisten via localStorage) ─────────────────
 const ALL_OWNER_TABS = [
-    { key: 'finance',   icon: '📊', label: 'Laporan'  },
-    { key: 'inventory', icon: '📦', label: 'Stok'     },
-    { key: 'opname',    icon: '📋', label: 'Opname'   },
-    { key: 'products',  icon: '🛠️', label: 'Produk'   },
+    { 
+        key: 'finance',   
+        icon: '📊', 
+        label: 'Laporan',
+        hasSubmenu: true,
+        submenus: [
+            { key: 'finance_umum', label: 'Laporan Umum' },
+            { key: 'finance_per_toko', label: 'Lap. Per Toko' }
+        ]
+    },
+    { 
+        key: 'inventory',   
+        icon: '📦', 
+        label: 'Stok',
+        hasSubmenu: true,
+        submenus: [
+            { key: 'inventory_opname',   icon: '📋', label: 'Opname'  },
+            { key: 'inventory_products', icon: '🛠️', label: 'Produk'  }
+        ]
+    },
     { key: 'members',   icon: '👥', label: 'Member'   },
     { key: 'users',     icon: '🔑', label: 'Kasir'    },
     { key: 'shifts',    icon: '⏰', label: 'Shift'    },
     { key: 'receipt',   icon: '🧾', label: 'Struk'    },
     { key: 'stores',    icon: '🏪', label: 'Toko'     },
 ];
+
 function loadTabVisibility() {
     try {
         const saved = JSON.parse(localStorage.getItem('ownerTabVisibility') || '{}');
-        // Default: semua tab visible
         const result = {};
         ALL_OWNER_TABS.forEach(t => { result[t.key] = saved[t.key] !== false; });
         return result;
@@ -98,60 +121,90 @@ async function render(container) {
     // --- STRUKTUR LAYOUT UTAMA ---
     const tabVis = loadTabVisibility();
 
-    // Pastikan activeOwnerTab tidak pointing ke tab yang hidden
-    if (!tabVis[activeOwnerTab]) {
-        activeOwnerTab = ALL_OWNER_TABS.find(t => tabVis[t.key])?.key || 'finance';
+    // Pastikan activeOwnerTab tidak pointing ke tab utama jika tersembunyi
+    const parentKey = activeOwnerTab.startsWith('finance') ? 'finance' : activeOwnerTab;
+    if (!tabVis[parentKey]) {
+        activeOwnerTab = ALL_OWNER_TABS.find(t => tabVis[t.key])?.key || 'finance_umum';
+    }
+    if (activeOwnerTab === 'finance') {
+        activeOwnerTab = 'finance_umum'; // set default sub-menu pertama yang aktif
+    }
+
+    if (window.registerSubTabs) {
+        const isFinancePage = activeOwnerTab === 'finance' || activeOwnerTab.startsWith('finance_');
+        const isStockPage = activeOwnerTab === 'inventory' || activeOwnerTab.startsWith('inventory_');
+        const subTabsList = [];
+        ALL_OWNER_TABS.filter(t => tabVis[t.key]).forEach(t => {
+            subTabsList.push({
+                key: t.key, label: t.label, icon: t.icon,
+                active: (t.key === 'finance' && isFinancePage) || (t.key === 'inventory' && isStockPage) || activeOwnerTab === t.key,
+                onClick: `window.switchOwnerTab('${t.key}')`,
+                indent: false,
+            });
+            
+            // Show finance submenus when in finance tab
+            if (t.key === 'finance' && isFinancePage && t.hasSubmenu) {
+                t.submenus.forEach(sub => subTabsList.push({
+                    key: sub.key, label: sub.label, icon: t.icon,
+                    active: activeOwnerTab === sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`,
+                    indent: true,
+                }));
+            }
+            
+            // Show stock submenus when in stock tab
+            if (t.key === 'inventory' && isStockPage) {
+                STOCK_SUB_TABS.forEach(sub => subTabsList.push({
+                    key: sub.key, label: sub.label, icon: sub.icon,
+                    active: activeOwnerTab === sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`,
+                    indent: true,
+                }));
+            }
+        });
+        window.registerSubTabs(subTabsList);
     }
 
     // Render tombol tab hanya yang visible
     const tabButtonsHTML = ALL_OWNER_TABS
         .filter(t => tabVis[t.key])
-        .map(t => `
-            <button onclick="window.switchOwnerTab('${t.key}')"
-                class="flex-1 lg:flex-none px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${activeOwnerTab === t.key ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}">
-                ${t.icon} ${t.label}
-            </button>`
-        ).join('');
+        .map(t => {
+            if (t.hasSubmenu) {
+                const isSubActive = activeOwnerTab.startsWith(t.key);
+                const activeSub = t.submenus.find(sub => sub.key === activeOwnerTab);
+                const currentLabel = activeSub ? activeSub.label : t.label;
+                
+                return `
+                    <div class="relative flex-1 lg:flex-none">
+                        <button onclick="document.getElementById('dropdown-${t.key}').classList.toggle('hidden')"
+                            class="w-full flex items-center justify-between gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${isSubActive ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}">
+                            <span>${t.icon} ${currentLabel}</span>
+                            <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        </button>
+                        <div id="dropdown-${t.key}" class="hidden absolute left-0 mt-1.5 z-50 min-w-[140px] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-xl p-1 space-y-0.5">
+                            ${t.submenus.map(sub => `
+                                <button onclick="window.switchOwnerTab('${sub.key}'); document.getElementById('dropdown-${t.key}').classList.add('hidden')"
+                                    class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition ${activeOwnerTab === sub.key ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-bold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
+                                    ${sub.label}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <button onclick="window.switchOwnerTab('${t.key}')"
+                    class="flex-1 lg:flex-none px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${activeOwnerTab === t.key ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}">
+                    ${t.icon} ${t.label}
+                </button>`;
+        }).join('');
 
     container.innerHTML = `
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b dark:border-gray-800 pb-4 mb-6 gap-4">
+        <div class="flex flex-col border-b dark:border-gray-800 pb-4 mb-6">
             <div>
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Panel Kendali Owner</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Pantau laporan keuangan detail, penjualan, logistik, dan pengaturan toko.</p>
-            </div>
-
-            <div class="flex items-start gap-2 w-full lg:w-auto">
-                <div class="flex flex-wrap bg-gray-200/80 dark:bg-gray-800/80 p-1 rounded-xl flex-1 lg:flex-none gap-1" id="owner-tab-bar">
-                    ${tabButtonsHTML}
-                </div>
-                <!-- Tombol Atur Tampilan Tab -->
-                <div class="relative shrink-0">
-                    <button onclick="window.toggleTabSettingsPanel()" id="btn-tab-settings"
-                        title="Atur tab yang ditampilkan"
-                        class="p-2 rounded-xl bg-gray-200/80 dark:bg-gray-800/80 hover:bg-gray-300 dark:hover:bg-gray-700 transition text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-                        </svg>
-                    </button>
-                    <!-- Panel Pengaturan Tab -->
-                    <div id="tab-settings-panel"
-                        class="hidden absolute right-0 top-full mt-2 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-4 w-56">
-                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Atur Tampilan Tab</p>
-                        <div class="space-y-1">
-                            ${ALL_OWNER_TABS.map(t => `
-                            <label class="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition group">
-                                <span class="text-sm text-gray-700 dark:text-gray-300 font-medium select-none">${t.icon} ${t.label}</span>
-                                <div class="relative shrink-0">
-                                    <input type="checkbox" class="sr-only peer" ${tabVis[t.key] ? 'checked' : ''}
-                                        onchange="window.toggleOwnerTabVisibility('${t.key}', this.checked)">
-                                    <div class="w-9 h-5 bg-gray-300 dark:bg-gray-600 peer-checked:bg-indigo-500 rounded-full transition-colors"></div>
-                                    <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
-                                </div>
-                            </label>`).join('')}
-                        </div>
-                        <p class="text-[10px] text-gray-400 mt-3 leading-relaxed">Tab yang disembunyikan tidak akan hilang datanya.</p>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -203,11 +256,32 @@ async function render(container) {
     
     // Render sub-konten tab aktif
     const tabContent = document.getElementById('tab-content-container');
-    if (activeOwnerTab === 'finance') {
+    
+    if (activeOwnerTab.startsWith('finance')) {
         _financeCache = { transactions, expenses, transactionItems, products, receivables, activeStores };
-        renderFinanceTab(tabContent, products, transactions, transactionItems, expenses, receivables, activeStores);
+        
+        if (activeOwnerTab === 'finance_per_toko') {
+            // Jika memilih Lap. Per Toko, kunci filter otomatis ke toko pertama / paksa filter toko tampil
+            financeFilterStore = activeStores.length > 0 ? activeStores[0].name : 'semua';
+            renderFinanceTab(tabContent, products, transactions, transactionItems, expenses, receivables, activeStores);
+            
+            // Opsional: Sembunyikan pilihan "Semua Toko" di dropdown filter jika diinginkan
+            const storeSelect = document.getElementById('finance-store-filter'); 
+            if(storeSelect) {
+                const optionSemua = storeSelect.querySelector('option[value="semua"]');
+                if(optionSemua) optionSemua.remove();
+            }
+        } else {
+            // Default Laporan Umum (Bisa melihat semua toko)
+            renderFinanceTab(tabContent, products, transactions, transactionItems, expenses, receivables, activeStores);
+        }
+        
     } else if (activeOwnerTab === 'inventory') {
         renderInventoryTab(tabContent, products, mutations, transactionItems, allStores, activeStores);
+    } else if (activeOwnerTab === 'inventory_opname') {
+        renderOpnameTab(tabContent, products, opnameLogs, allStores, activeStores);
+    } else if (activeOwnerTab === 'inventory_products') {
+        renderProductsTab(tabContent, products, allStores, activeStores);
     } else if (activeOwnerTab === 'opname') {
         renderOpnameTab(tabContent, products, opnameLogs, allStores, activeStores);
     } else if (activeOwnerTab === 'products') {
@@ -499,103 +573,7 @@ function renderFinanceTab(target, products, transactions, transactionItems, expe
         </div>
 
         <!-- ══════════════════════════════════════════════════════
-             BLOK 2 · RINGKASAN PER TOKO
-        ══════════════════════════════════════════════════════ -->
-        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm mb-6 overflow-hidden">
-            <div class="px-5 py-3.5 bg-gray-50 dark:bg-gray-800/60 border-b dark:border-gray-800 flex items-center gap-2">
-                <span class="text-sm">🏪</span>
-                <h3 class="text-sm font-bold text-gray-800 dark:text-white">Ringkasan Per Toko</h3>
-                <span class="ml-auto text-[11px] font-semibold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">${periodLabel}</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead>
-                        <tr class="border-b dark:border-gray-800">
-                            <th class="p-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toko</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Omset Hari Ini</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Omset ${periodLabel}</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Pendapatan</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-red-400 uppercase tracking-wider">Piutang Belum</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Piutang Lunas</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y dark:divide-gray-800">
-                        ${storeNames.map((name, idx) => {
-                            const d = perStore[name];
-                            const colors = ['indigo','violet','teal','amber','rose'];
-                            const c = colors[idx % colors.length];
-                            return `
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                                <td class="p-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-2 h-2 rounded-full bg-${c}-500 shrink-0"></span>
-                                        <span class="font-bold text-gray-800 dark:text-gray-200">${name}</span>
-                                        <span class="text-[10px] text-gray-400">${d.totalTxCount} tx</span>
-                                    </div>
-                                </td>
-                                <td class="p-3 text-right font-semibold text-gray-700 dark:text-gray-300">Rp ${d.dailyRev.toLocaleString('id-ID')}</td>
-                                <td class="p-3 text-right font-bold text-indigo-600 dark:text-indigo-400">Rp ${d.periodRev.toLocaleString('id-ID')}</td>
-                                <td class="p-3 text-right font-extrabold text-gray-900 dark:text-white">Rp ${d.totalRev.toLocaleString('id-ID')}</td>
-                                <td class="p-3 text-right font-semibold text-red-600 dark:text-red-400">Rp ${d.piutangBelum.toLocaleString('id-ID')}</td>
-                                <td class="p-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">Rp ${d.piutangLunas.toLocaleString('id-ID')}</td>
-                            </tr>`;
-                        }).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr class="bg-gray-50 dark:bg-gray-800/60 border-t-2 dark:border-gray-700 font-bold text-xs text-gray-700 dark:text-gray-300">
-                            <td class="p-3">Total</td>
-                            <td class="p-3 text-right">&mdash;</td>
-                            <td class="p-3 text-right text-indigo-600 dark:text-indigo-400">Rp ${filteredRev.toLocaleString('id-ID')}</td>
-                            <td class="p-3 text-right text-gray-900 dark:text-white font-extrabold">Rp ${totalAllStoresRev.toLocaleString('id-ID')}</td>
-                            <td class="p-3 text-right text-red-600 dark:text-red-400">Rp ${totalPiutangBelumBayar.toLocaleString('id-ID')}</td>
-                            <td class="p-3 text-right text-emerald-600 dark:text-emerald-400">Rp ${totalPiutangSudahBayar.toLocaleString('id-ID')}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════
-             BLOK 3 · PENGELUARAN PER TOKO
-        ══════════════════════════════════════════════════════ -->
-        ${Object.keys(expPerStore).length > 0 ? `
-        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm mb-6 overflow-hidden">
-            <div class="px-5 py-3.5 bg-gray-50 dark:bg-gray-800/60 border-b dark:border-gray-800 flex items-center gap-2">
-                <span class="text-sm">💸</span>
-                <h3 class="text-sm font-bold text-gray-800 dark:text-white">Pengeluaran Per Toko</h3>
-                <span class="ml-auto text-[11px] font-semibold text-rose-500 bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full">${periodLabel}</span>
-                <span class="text-xs font-black text-rose-700 dark:text-rose-400 ml-2">Total: Rp ${filteredExpTotal.toLocaleString('id-ID')}</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead>
-                        <tr class="border-b dark:border-gray-800">
-                            <th class="p-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toko</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Pengeluaran</th>
-                            <th class="p-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Jumlah Pos</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y dark:divide-gray-800">
-                        ${Object.entries(expPerStore).sort((a,b) => b[1]-a[1]).map(([branch, total]) => `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                            <td class="p-3 font-bold text-gray-800 dark:text-gray-200">${branch}</td>
-                            <td class="p-3 text-right font-extrabold text-rose-600 dark:text-rose-400">-Rp ${total.toLocaleString('id-ID')}</td>
-                            <td class="p-3 text-right text-gray-500 dark:text-gray-400">${filteredExp.filter(e => (e.storeBranch || 'Tidak Diketahui') === branch).length} pos</td>
-                        </tr>`).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr class="bg-gray-50 dark:bg-gray-800/60 border-t-2 dark:border-gray-700 font-bold text-gray-700 dark:text-gray-300">
-                            <td class="p-3">Total</td>
-                            <td class="p-3 text-right font-extrabold text-rose-700 dark:text-rose-400">-Rp ${filteredExpTotal.toLocaleString('id-ID')}</td>
-                            <td class="p-3 text-right text-gray-500">${filteredExp.length} pos</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>` : ''}
-
-        <!-- ══════════════════════════════════════════════════════
-             BLOK 4 · GRAFIK PENJUALAN
+             BLOK 2 · GRAFIK PENJUALAN (Ringkasan per toko dipisah ke halaman baru)
         ══════════════════════════════════════════════════════ -->
         <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm mb-6 overflow-hidden">
             <div class="px-5 py-3.5 bg-gray-50 dark:bg-gray-800/60 border-b dark:border-gray-800 flex flex-wrap items-center gap-3">
@@ -1077,9 +1055,9 @@ function renderInventoryTab(target, products, mutations, txItems, allStores, act
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">Kuantitas & Catatan</label>
-                        <div class="flex gap-2 mt-1">
-                            <input type="number" id="m-qty" required min="1" placeholder="Qty" class="w-24 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded text-sm dark:text-white">
-                            <input type="text" id="m-note" required placeholder="Catatan..." class="flex-1 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded text-sm dark:text-white">
+                        <div class="flex gap-2 mt-1 min-w-0">
+                            <input type="number" id="m-qty" required min="1" placeholder="Qty" class="w-20 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded text-sm dark:text-white flex-shrink-0">
+                            <input type="text" id="m-note" required placeholder="Catatan..." class="flex-1 min-w-0 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded text-sm dark:text-white overflow-hidden">
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-gray-900 dark:bg-gray-700 text-white text-sm font-bold py-2.5 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition">Simpan Mutasi</button>
@@ -1648,6 +1626,45 @@ async function renderStoresTab(target, stores) {
 
 window.switchOwnerTab = function(tabName) {
     activeOwnerTab = tabName;
+    
+    // Handle finance submenu
+    if (tabName.startsWith('finance_')) {
+        const tv = loadTabVisibility();
+        const sl = [];
+        ALL_OWNER_TABS.filter(t => tv[t.key]).forEach(t => {
+            sl.push({ key:t.key, label:t.label, icon:t.icon,
+                active: t.key === 'finance',
+                onClick: `window.switchOwnerTab('${t.key}')`, indent: false });
+            if (t.key === 'finance' && t.hasSubmenu) {
+                t.submenus.forEach(sub => sl.push({
+                    key: sub.key, label: sub.label, icon: t.icon,
+                    active: tabName === sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`, indent: true,
+                }));
+            }
+        });
+        if (window.registerSubTabs) window.registerSubTabs(sl);
+    }
+    
+    // Handle inventory submenu
+    if (tabName.startsWith('inventory_')) {
+        const tv = loadTabVisibility();
+        const sl = [];
+        ALL_OWNER_TABS.filter(t => tv[t.key]).forEach(t => {
+            sl.push({ key:t.key, label:t.label, icon:t.icon,
+                active: t.key === 'inventory',
+                onClick: `window.switchOwnerTab('${t.key}')`, indent: false });
+            if (t.key === 'inventory') {
+                STOCK_SUB_TABS.forEach(sub => sl.push({
+                    key: sub.key, label: sub.label, icon: sub.icon,
+                    active: tabName === sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`, indent: true,
+                }));
+            }
+        });
+        if (window.registerSubTabs) window.registerSubTabs(sl);
+    }
+    
     render(document.getElementById('app-container'));
 };
 
@@ -1689,6 +1706,36 @@ window.toggleOwnerTabVisibility = function(tabKey, visible) {
     // Jika tab aktif sekarang disembunyikan, pindah ke tab visible pertama
     if (!visible && activeOwnerTab === tabKey) {
         activeOwnerTab = ALL_OWNER_TABS.find(t => vis[t.key])?.key || 'finance';
+    }
+
+    if (window.registerSubTabs) {
+        const isFinancePg = activeOwnerTab === 'finance' || activeOwnerTab.startsWith('finance_');
+        const isStockPg = activeOwnerTab === 'inventory' || activeOwnerTab.startsWith('inventory_');
+        const sl2 = [];
+        ALL_OWNER_TABS.filter(t => vis[t.key]).forEach(t => {
+            sl2.push({ key:t.key, label:t.label, icon:t.icon,
+                active: (t.key==='finance' && isFinancePg) || (t.key==='inventory' && isStockPg) || activeOwnerTab===t.key,
+                onClick: `window.switchOwnerTab('${t.key}')`, indent: false });
+            
+            // Show finance submenus
+            if (t.key === 'finance' && isFinancePg && t.hasSubmenu) {
+                t.submenus.forEach(sub => sl2.push({
+                    key:sub.key, label:sub.label, icon:t.icon,
+                    active: activeOwnerTab===sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`, indent: true,
+                }));
+            }
+            
+            // Show stock submenus
+            if (t.key === 'inventory' && isStockPg) {
+                STOCK_SUB_TABS.forEach(sub => sl2.push({
+                    key:sub.key, label:sub.label, icon:sub.icon,
+                    active: activeOwnerTab===sub.key,
+                    onClick: `window.switchOwnerTab('${sub.key}')`, indent: true,
+                }));
+            }
+        });
+        window.registerSubTabs(sl2);
     }
 
     // Re-render tab bar saja tanpa full render (lebih responsif)
@@ -3212,6 +3259,298 @@ window.updateAttendance = async function(attendanceId, e) {
     } catch (err) {
         alert('❌ Gagal memperbarui kehadiran: ' + err.message);
     }
+};
+
+// ── Helper Week & Date Laporan Per Toko ─────────────────────────────────────
+function getISOWeekAndYear(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr.split('T')[0]);
+    if (isNaN(date.getTime())) return '';
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getCurWeekString() {
+    return getISOWeekAndYear(new Date().toISOString());
+}
+
+// ── SUB TAB BARU: LAPORAN PENJUALAN PER TOKO ────────────────────────────────
+function renderStoreSalesTab(target, transactions, expenses, receivables = [], activeStores = []) {
+    if (!storeFilterWeek) storeFilterWeek = getCurWeekString();
+
+    // ── Helper filter rentang waktu ──────────────────────────────────────────
+    function txInRange(tx) {
+        const ts = (tx.timestamp || '').split('T')[0];
+        if (storeFilterMode === 'harian')   return ts === storeFilterDate;
+        if (storeFilterMode === 'mingguan') return getISOWeekAndYear(tx.timestamp) === storeFilterWeek;
+        if (storeFilterMode === 'bulanan')  return ts.substring(0, 7) === storeFilterMonth;
+        if (storeFilterMode === 'tahunan')  return ts.substring(0, 4) === storeFilterYear;
+        return true;
+    }
+    
+    function expInRange(exp) {
+        const d = (exp.date || '');
+        if (storeFilterMode === 'harian')   return d === storeFilterDate;
+        if (storeFilterMode === 'mingguan') return getISOWeekAndYear(exp.date) === storeFilterWeek;
+        if (storeFilterMode === 'bulanan')  return d.substring(0, 7) === storeFilterMonth;
+        if (storeFilterMode === 'tahunan')  return d.substring(0, 4) === storeFilterYear;
+        return true;
+    }
+    
+    const filteredTx  = transactions.filter(txInRange);
+    const filteredExp = expenses.filter(expInRange);
+    
+    // ── Label periode aktif ──────────────────────────────────────────────────
+    const BULAN_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    let periodLabel = '';
+    if (storeFilterMode === 'harian')  periodLabel = new Date(storeFilterDate).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'});
+    if (storeFilterMode === 'mingguan') {
+        const [y, w] = storeFilterWeek.split('-W');
+        periodLabel = `Minggu ke-${w}, Tahun ${y}`;
+    }
+    if (storeFilterMode === 'bulanan') { 
+        const [y,m] = storeFilterMonth.split('-'); 
+        periodLabel = `${BULAN_ID[+m-1]} ${y}`; 
+    }
+    if (storeFilterMode === 'tahunan') periodLabel = `Tahun ${storeFilterYear}`;
+
+    // ── Kumpulkan semua nama toko dari transaksi + activeStores ────────────────
+    const storeNames = [...new Set([
+        ...activeStores.map(s => s.name),
+        ...transactions.map(t => t.storeBranch).filter(Boolean),
+    ])].sort();
+
+    const perStore = {};
+    storeNames.forEach(name => {
+        perStore[name] = {
+            txCount: 0,
+            grossSales: 0,
+            expenses: 0,
+            piutangBelum: 0,
+            piutangLunas: 0
+        };
+    });
+
+    // Kalkulasi transaksi untuk rentang filter
+    filteredTx.forEach(tx => {
+        const branch = tx.storeBranch || storeNames[0] || 'Toko 1';
+        if (!perStore[branch]) perStore[branch] = { txCount:0, grossSales:0, expenses:0, piutangBelum:0, piutangLunas:0 };
+        const d = perStore[branch];
+        d.grossSales += tx.total;
+        d.txCount++;
+    });
+
+    // Kalkulasi pengeluaran untuk rentang filter
+    filteredExp.forEach(e => {
+        const branch = e.storeBranch || 'Tidak Diketahui';
+        if (perStore[branch]) {
+            perStore[branch].expenses += Number(e.amount) || 0;
+        }
+    });
+
+    // Kalkulasi piutang (piutang dikaitkan dengan transaksi yang dibuat dalam rentang filter)
+    const filteredTxIds = new Set(filteredTx.map(t => t.id));
+    receivables.forEach(r => {
+        const branch = r.storeBranch || storeNames[0] || 'Toko 1';
+        if (!perStore[branch]) perStore[branch] = { txCount:0, grossSales:0, expenses:0, piutangBelum:0, piutangLunas:0 };
+        
+        // Filter piutang yang berkaitan dengan transaksi di periode terpilih
+        if (filteredTxIds.has(r.transactionId)) {
+            if (r.isPaid) perStore[branch].piutangLunas += Number(r.amount) || 0;
+            else          perStore[branch].piutangBelum += Number(r.amount) || 0;
+        }
+    });
+
+    // Total Grand
+    let totalTxCount = 0;
+    let totalGrossSales = 0;
+    let totalExpenses = 0;
+    let totalNetRevenue = 0;
+    let totalPiutangBelum = 0;
+    let totalPiutangLunas = 0;
+
+    storeNames.forEach(name => {
+        const d = perStore[name];
+        totalTxCount += d.txCount;
+        totalGrossSales += d.grossSales;
+        totalExpenses += d.expenses;
+        totalPiutangBelum += d.piutangBelum;
+        totalPiutangLunas += d.piutangLunas;
+    });
+    totalNetRevenue = totalGrossSales - totalExpenses;
+
+    // Filter controls HTML
+    let filterSelectorHTML = '';
+    if (storeFilterMode === 'harian') {
+        filterSelectorHTML = `<input type="date" value="${storeFilterDate}" onchange="window.changeStoreFilterDate(this.value)" class="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300">`;
+    } else if (storeFilterMode === 'mingguan') {
+        filterSelectorHTML = `<input type="week" value="${storeFilterWeek}" onchange="window.changeStoreFilterWeek(this.value)" class="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300">`;
+    } else if (storeFilterMode === 'bulanan') {
+        filterSelectorHTML = `<input type="month" value="${storeFilterMonth}" onchange="window.changeStoreFilterMonth(this.value)" class="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300">`;
+    } else if (storeFilterMode === 'tahunan') {
+        const curY = new Date().getFullYear();
+        let options = '';
+        for (let y = curY - 3; y <= curY + 1; y++) {
+            options += `<option value="${y}" ${storeFilterYear === String(y) ? 'selected' : ''}>Tahun ${y}</option>`;
+        }
+        filterSelectorHTML = `<select onchange="window.changeStoreFilterYear(this.value)" class="px-3 py-1.5 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300">${options}</select>`;
+    }
+
+    target.innerHTML = `
+        <div class="space-y-6 animate-fadeInUp">
+            <!-- HEADER & FILTER -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b dark:border-gray-800 pb-4 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Laporan Penjualan Per Toko</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Analisis performa penjualan, pengeluaran, dan piutang antar cabang.</p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <!-- Toggle Filter Mode -->
+                    <div class="flex bg-gray-200/80 dark:bg-gray-800/80 p-1 rounded-xl gap-1">
+                        ${['harian','mingguan','bulanan','tahunan'].map(mode => `
+                            <button onclick="window.changeStoreFilterMode('${mode}')"
+                                class="px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold capitalize transition ${storeFilterMode === mode ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}">
+                                ${mode}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <!-- Date Selector -->
+                    ${filterSelectorHTML}
+                </div>
+            </div>
+
+            <!-- DASHBOARD OVERVIEW CARDS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 card-hover">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Omset Kotor</p>
+                            <h3 class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">Rp ${totalGrossSales.toLocaleString('id-ID')}</h3>
+                        </div>
+                        <span class="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-lg">🏪</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">${totalTxCount} total transaksi</p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 card-hover">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Pengeluaran</p>
+                            <h3 class="text-xl font-extrabold text-rose-600 dark:text-rose-400 mt-2">Rp ${totalExpenses.toLocaleString('id-ID')}</h3>
+                        </div>
+                        <span class="p-2 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl text-lg">💸</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">Seluruh cabang</p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 card-hover">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Pendapatan Bersih</p>
+                            <h3 class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">Rp ${totalNetRevenue.toLocaleString('id-ID')}</h3>
+                        </div>
+                        <span class="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-lg">💰</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">Omset - Pengeluaran</p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 card-hover">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Piutang Berjalan</p>
+                            <h3 class="text-xl font-extrabold text-red-600 dark:text-red-400 mt-2">Rp ${totalPiutangBelum.toLocaleString('id-ID')}</h3>
+                        </div>
+                        <span class="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-lg">⚠️</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">Lunas: Rp ${totalPiutangLunas.toLocaleString('id-ID')}</p>
+                </div>
+            </div>
+
+            <!-- DETAIL TABLE -->
+            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b dark:border-gray-800 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white">Rincian Perbandingan Toko</h3>
+                    <span class="text-[11px] font-semibold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">${periodLabel}</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="border-b dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+                                <th class="p-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toko</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Transaksi</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Omset Kotor</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-rose-400 uppercase tracking-wider">Pengeluaran</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Omset Bersih</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-red-400 uppercase tracking-wider">Piutang Belum</th>
+                                <th class="p-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">Piutang Lunas</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y dark:divide-gray-800">
+                            ${storeNames.map((name, idx) => {
+                                const d = perStore[name];
+                                const net = d.grossSales - d.expenses;
+                                const colors = ['indigo','violet','teal','amber','rose'];
+                                const c = colors[idx % colors.length];
+                                return `
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                    <td class="p-4">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-${c}-500 shrink-0"></span>
+                                            <span class="font-bold text-gray-800 dark:text-gray-200 text-sm">${name}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 text-right font-semibold text-gray-600 dark:text-gray-400">${d.txCount} tx</td>
+                                    <td class="p-4 text-right font-bold text-indigo-600 dark:text-indigo-400">Rp ${d.grossSales.toLocaleString('id-ID')}</td>
+                                    <td class="p-4 text-right font-bold text-rose-600 dark:text-rose-400">-Rp ${d.expenses.toLocaleString('id-ID')}</td>
+                                    <td class="p-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400">Rp ${net.toLocaleString('id-ID')}</td>
+                                    <td class="p-4 text-right font-bold text-red-600 dark:text-red-400">Rp ${d.piutangBelum.toLocaleString('id-ID')}</td>
+                                    <td class="p-4 text-right font-semibold text-gray-600 dark:text-gray-400">Rp ${d.piutangLunas.toLocaleString('id-ID')}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-gray-50/50 dark:bg-gray-800/50 border-t-2 dark:border-gray-700 font-bold text-xs text-gray-800 dark:text-gray-200">
+                                <td class="p-4">Total Gabungan</td>
+                                <td class="p-4 text-right">${totalTxCount} tx</td>
+                                <td class="p-4 text-right text-indigo-600 dark:text-indigo-400">Rp ${totalGrossSales.toLocaleString('id-ID')}</td>
+                                <td class="p-4 text-right text-rose-600 dark:text-rose-400">-Rp ${totalExpenses.toLocaleString('id-ID')}</td>
+                                <td class="p-4 text-right text-emerald-600 dark:text-emerald-400 font-extrabold">Rp ${totalNetRevenue.toLocaleString('id-ID')}</td>
+                                <td class="p-4 text-right text-red-600 dark:text-red-400">Rp ${totalPiutangBelum.toLocaleString('id-ID')}</td>
+                                <td class="p-4 text-right">Rp ${totalPiutangLunas.toLocaleString('id-ID')}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ── Global Filter Event Handlers Laporan Per Toko ───────────────────────────
+window.changeStoreFilterMode = function(mode) {
+    storeFilterMode = mode;
+    render(document.getElementById('app-container'));
+};
+window.changeStoreFilterDate = function(val) {
+    storeFilterDate = val;
+    render(document.getElementById('app-container'));
+};
+window.changeStoreFilterWeek = function(val) {
+    storeFilterWeek = val;
+    render(document.getElementById('app-container'));
+};
+window.changeStoreFilterMonth = function(val) {
+    storeFilterMonth = val;
+    render(document.getElementById('app-container'));
+};
+window.changeStoreFilterYear = function(val) {
+    storeFilterYear = val;
+    render(document.getElementById('app-container'));
 };
 
 export default { render };

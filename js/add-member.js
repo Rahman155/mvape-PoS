@@ -1,5 +1,5 @@
 // js/views/add-member.js
-import db from '../db.js';
+import db from './db.js';
 
 async function render(container) {
     // Ambil semua daftar member untuk ditampilkan sebagai preview di bawah form

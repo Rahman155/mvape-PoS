@@ -72,32 +72,85 @@
             ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
         }
 
-        /* Bottom nav */
-        #bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 40;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-top: 1px solid #f3f4f6;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+        /* ===== GLOBAL APP SIDEBAR ===== */
+        :root {
+            --sidebar-width: 280px;
         }
 
-        /* Dark mode bottom nav */
-        @media (prefers-color-scheme: dark) {
-            #bottom-nav {
-                background: rgba(17,24,39,0.95);
-                border-top-color: #1f2937;
+        #app-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: var(--sidebar-width);
+            z-index: 50;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #app-sidebar.sidebar-open {
+            transform: translateX(0);
+        }
+        #app-sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 49;
+            background: rgba(0,0,0,0);
+            pointer-events: none;
+            transition: background 0.3s ease;
+        }
+        #app-sidebar-overlay.overlay-active {
+            background: rgba(0,0,0,0.55);
+            pointer-events: all;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Desktop: sidebar push layout (no overlay) */
+        @media (min-width: 768px) {
+            #app-sidebar {
+                top: 56px; /* height of top nav (h-14 = 3.5rem = 56px) */
+                height: calc(100% - 56px);
+                z-index: 35;
+            }
+            #app-sidebar-overlay.overlay-active {
+                background: rgba(0,0,0,0);
+                backdrop-filter: none;
+                pointer-events: none;
+            }
+            #main-nav {
+                transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            #main-nav.nav-sidebar-open {
+                padding-left: var(--sidebar-width);
+            }
+            #app-container {
+                transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            #app-container.content-sidebar-open {
+                padding-left: calc(var(--sidebar-width) + 1.5rem);
             }
         }
-
-        /* Content padding for bottom nav */
-        body.has-bottom-nav main#app-container {
-            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+        /* Nav link active state */
+        .sidebar-nav-link.active-page {
+            background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+            color: #6366f1;
+            border-color: rgba(99,102,241,0.25);
         }
+        .dark .sidebar-nav-link.active-page {
+            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15));
+            color: #a5b4fc;
+            border-color: rgba(99,102,241,0.3);
+        }
+        /* Sidebar scrollbar */
+        #app-sidebar .sidebar-scroll::-webkit-scrollbar { width: 3px; }
+        #app-sidebar .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 99px; }
+        /* Hamburger animation */
+        #hamburger-btn .bar { transition: all 0.25s ease; transform-origin: center; }
+        #hamburger-btn.is-open .bar-1 { transform: rotate(45deg) translate(5px, 5px); }
+        #hamburger-btn.is-open .bar-2 { opacity: 0; transform: scaleX(0); }
+        #hamburger-btn.is-open .bar-3 { transform: rotate(-45deg) translate(5px, -5px); }
 
         @media print {
             body * { visibility: hidden; }
@@ -181,54 +234,119 @@
 </head>
 <body class="bg-gray-50 dark:bg-gray-950 antialiased text-gray-900 dark:text-white">
 
+    <!-- ===== GLOBAL APP SIDEBAR OVERLAY ===== -->
+    <div id="app-sidebar-overlay" onclick="window.closeAppSidebar()"></div>
+
+    <!-- ===== GLOBAL APP SIDEBAR ===== -->
+    <aside id="app-sidebar" class="bg-white dark:bg-gray-900 shadow-2xl border-r border-gray-100 dark:border-gray-800">
+
+        <!-- Sidebar Header -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50">
+                    M
+                </div>
+                <div>
+                    <p class="font-extrabold text-gray-900 dark:text-white text-sm tracking-tight leading-none">Mvape</p>
+                    <p class="font-bold text-indigo-600 dark:text-indigo-400 text-xs">Point of Sale</p>
+                </div>
+            </div>
+            <button onclick="window.closeAppSidebar()" class="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- User Info Card -->
+        <div class="px-4 py-3 mx-3 mt-4 mb-2 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 border border-indigo-100 dark:border-indigo-800/50" id="sidebar-user-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-base shadow-md" id="sidebar-user-avatar">U</div>
+                <div class="min-w-0">
+                    <p class="font-bold text-gray-900 dark:text-white text-sm truncate" id="sidebar-user-name">Pengguna</p>
+                    <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 capitalize" id="sidebar-user-role">—</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex-1 overflow-y-auto sidebar-scroll px-3 py-2">
+
+            <!-- Label -->
+            <p class="text-[10px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest px-3 mb-2 mt-1">Navigasi</p>
+
+            <!-- Nav Links Container (populated by JS) -->
+            <nav id="sidebar-nav-links" class="space-y-1"></nav>
+
+            <!-- Divider -->
+            <div class="my-4 border-t border-gray-100 dark:border-gray-800"></div>
+
+            <!-- Settings -->
+            <p class="text-[10px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest px-3 mb-2">Pengaturan</p>
+
+            <!-- Dark Mode Toggle -->
+            <button id="sidebar-dark-toggle" onclick="window.toggleAppDarkMode()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition group">
+                <span class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-base group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 transition">
+                    <svg id="icon-moon" class="w-4 h-4 text-gray-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    <svg id="icon-sun" class="w-4 h-4 text-yellow-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                </span>
+                <span id="dark-mode-label">Mode Gelap</span>
+                <!-- Toggle pill -->
+                <div class="ml-auto relative w-10 h-5">
+                    <div class="absolute inset-0 bg-gray-200 dark:bg-indigo-600 rounded-full transition-colors"></div>
+                    <div class="absolute top-0.5 left-0.5 dark:left-5 w-4 h-4 bg-white rounded-full shadow transition-all"></div>
+                </div>
+            </button>
+        </div>
+
+        <!-- Sidebar Footer: Logout -->
+        <div class="px-3 pb-6 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
+            <button id="sidebar-logout-btn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition group border border-transparent hover:border-red-100 dark:hover:border-red-900/30">
+                <span class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center transition group-hover:bg-red-100 dark:group-hover:bg-red-900/40">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </span>
+                Keluar dari Aplikasi
+            </button>
+        </div>
+    </aside>
+
     <!-- ===== TOP NAVIGATION ===== -->
     <nav id="main-nav" class="hidden sticky top-0 z-30">
         <div class="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 shadow-sm">
             <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-                <!-- Brand -->
-                <div class="flex items-center gap-2.5 shrink-0">
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-200">M</div>
-                    <div>
-                        <span class="font-extrabold text-gray-900 dark:text-white text-sm tracking-tight">Mvape</span>
-                        <span class="font-extrabold text-indigo-600 text-sm"> Kasir</span>
+
+                <!-- Left: Hamburger (all screens) + Brand -->
+                <div class="flex items-center gap-3">
+                    <!-- Hamburger Button (all screen sizes) -->
+                    <button id="hamburger-btn" onclick="window.toggleAppSidebar()" class="flex flex-col justify-center items-center w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition shrink-0" aria-label="Buka menu">
+                        <svg class="w-5 h-5 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path class="bar bar-1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16"/>
+                            <path class="bar bar-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16"/>
+                            <path class="bar bar-3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 18h16"/>
+                        </svg>
+                    </button>
+
+                    <!-- Brand -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-200">M</div>
+                        <div>
+                            <span class="font-extrabold text-gray-900 dark:text-white text-sm tracking-tight">Mvape</span>
+                            <span class="font-extrabold text-indigo-600 text-sm"> Kasir</span>
+                        </div>
+                        <span id="user-badge" class="hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800"></span>
                     </div>
-                    <span id="user-badge" class="hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800"></span>
                 </div>
 
-                <!-- Desktop Nav Links -->
-                <div class="hidden md:flex items-center gap-1">
-                    <a id="nav-superadmin" href="#superadmin" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 hover:bg-violet-200 transition">⚡ Super Admin</a>
-                    <a id="nav-cashier" href="#kasir" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">🛒 Kasir</a>
-                    <a id="nav-owner" href="#owner" class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">📊 Owner</a>
-                </div>
 
-                <!-- Right: Badge (mobile) + Logout -->
+                <!-- Right: Page indicator + Logout -->
                 <div class="flex items-center gap-2">
-                    <span id="user-badge-mobile" class="sm:hidden text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 max-w-[80px] truncate"></span>
+                    <!-- Current page label -->
+                    <span id="nav-current-page" class="text-xs font-bold text-gray-600 dark:text-gray-400 hidden sm:inline"></span>
+                    <!-- Logout button -->
                     <button id="btn-logout" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/60 transition border border-red-100 dark:border-red-800">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         <span class="hidden sm:inline">Keluar</span>
                     </button>
                 </div>
             </div>
-        </div>
-    </nav>
-
-    <!-- ===== BOTTOM MOBILE NAV ===== -->
-    <nav id="bottom-nav" class="hidden md:hidden">
-        <div class="flex items-center justify-around px-2 pt-2 pb-1">
-            <a id="bnav-kasir" href="#kasir" class="bnav-item flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
-                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-indigo-600">Kasir</span>
-            </a>
-            <a id="bnav-owner" href="#owner" class="bnav-item hidden flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
-                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-indigo-600">Owner</span>
-            </a>
-            <a id="bnav-superadmin" href="#superadmin" class="bnav-item hidden flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
-                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-violet-600">Admin</span>
-            </a>
         </div>
     </nav>
 
@@ -309,54 +427,228 @@
         import loginView from './js/views/login.js';
         import cashierView from './js/views/cashier.js';
         import ownerView from './js/views/owner.js';
-        import superAdminView from './js/views/superadmin.js';
+        import superAdminView from './js/superadmin.js';
 
-        const container = document.getElementById('app-container');
-        const nav       = document.getElementById('main-nav');
-        const bottomNav = document.getElementById('bottom-nav');
-        const userBadge        = document.getElementById('user-badge');
-        const userBadgeMobile  = document.getElementById('user-badge-mobile');
+        const container    = document.getElementById('app-container');
+        const nav          = document.getElementById('main-nav');
+        const appSidebar   = document.getElementById('app-sidebar');
+        const sidebarOverlay = document.getElementById('app-sidebar-overlay');
+        const userBadge    = document.getElementById('user-badge');
+        const hamburgerBtn = document.getElementById('hamburger-btn');
 
+        // ── Dark mode setup ─────────────────────────────────────────────────────
+        function applyDarkMode() {
+            const isDark = localStorage.theme === 'dark' ||
+                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', isDark);
+            const iconMoon = document.getElementById('icon-moon');
+            const iconSun  = document.getElementById('icon-sun');
+            const label    = document.getElementById('dark-mode-label');
+            if (iconMoon) iconMoon.classList.toggle('hidden', isDark);
+            if (iconSun)  iconSun.classList.toggle('hidden', !isDark);
+            if (label)    label.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
+        }
+        applyDarkMode();
+
+        window.toggleAppDarkMode = function() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            applyDarkMode();
+        };
+        // Also expose for superadmin.js compatibility
+        window.toggleDarkMode = window.toggleAppDarkMode;
+
+        // ── Sidebar open / close ────────────────────────────────────────────────
+        function isDesktop() { return window.innerWidth >= 768; }
+
+        window.openAppSidebar = function() {
+            appSidebar.classList.add('sidebar-open');
+            sidebarOverlay.classList.add('overlay-active');
+            hamburgerBtn?.classList.add('is-open');
+            if (isDesktop()) {
+                // Desktop: push layout, no scroll lock
+                nav.classList.add('nav-sidebar-open');
+                document.getElementById('app-container').classList.add('content-sidebar-open');
+            } else {
+                // Mobile: block background scroll
+                document.body.style.overflow = 'hidden';
+            }
+        };
+
+        window.closeAppSidebar = function() {
+            appSidebar.classList.remove('sidebar-open');
+            sidebarOverlay.classList.remove('overlay-active');
+            hamburgerBtn?.classList.remove('is-open');
+            document.body.style.overflow = '';
+            nav.classList.remove('nav-sidebar-open');
+            document.getElementById('app-container').classList.remove('content-sidebar-open');
+        };
+
+        window.toggleAppSidebar = function() {
+            if (appSidebar.classList.contains('sidebar-open')) {
+                window.closeAppSidebar();
+            } else {
+                window.openAppSidebar();
+            }
+        };
+
+        // On resize: adjust push-layout classes based on new viewport
+        window.addEventListener('resize', () => {
+            if (!appSidebar.classList.contains('sidebar-open')) return;
+            if (isDesktop()) {
+                document.body.style.overflow = '';
+                nav.classList.add('nav-sidebar-open');
+                document.getElementById('app-container').classList.add('content-sidebar-open');
+            } else {
+                document.body.style.overflow = 'hidden';
+                nav.classList.remove('nav-sidebar-open');
+                document.getElementById('app-container').classList.remove('content-sidebar-open');
+            }
+        });
+
+        // ── Session helper ──────────────────────────────────────────────────────
         function getUserSession() {
             const s = sessionStorage.getItem('pos_user');
             return s ? JSON.parse(s) : null;
         }
 
-        function updateBottomNav(hash, role) {
-            // Show/hide bottom nav items
-            const bKasir  = document.getElementById('bnav-kasir');
-            const bOwner  = document.getElementById('bnav-owner');
-            const bAdmin  = document.getElementById('bnav-superadmin');
+        // ── Build sidebar nav links ─────────────────────────────────────────────
+        const PAGE_ITEMS = [
+            {
+                hash: '#kasir',
+                icon: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`,
+                label: 'Kasir',
+                subtitle: 'Transaksi penjualan',
+                roles: ['cashier', 'owner', 'superadmin'],
+                color: 'indigo',
+            },
+            {
+                hash: '#owner',
+                icon: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+                label: 'Panel Owner',
+                subtitle: 'Laporan & manajemen',
+                roles: ['owner', 'superadmin'],
+                color: 'emerald',
+            },
+            {
+                hash: '#superadmin',
+                icon: `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+                label: 'Super Admin',
+                subtitle: 'Kelola sistem penuh',
+                roles: ['superadmin'],
+                color: 'violet',
+            },
+        ];
 
-            [bKasir, bOwner, bAdmin].forEach(el => el.classList.add('hidden'));
-            [bKasir, bOwner, bAdmin].forEach(el => el.classList.remove('active'));
+        window.currentSubTabs = [];
 
-            if (role === 'superadmin') {
-                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
-                bOwner.classList.remove('hidden'); bOwner.classList.add('flex');
-                bAdmin.classList.remove('hidden'); bAdmin.classList.add('flex');
-            } else if (role === 'owner') {
-                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
-                bOwner.classList.remove('hidden'); bOwner.classList.add('flex');
-            } else {
-                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
+        window.registerSubTabs = function(subTabs) {
+            window.currentSubTabs = subTabs || [];
+            const user = getUserSession();
+            if (user) {
+                const hash = window.location.hash || '#kasir';
+                window.buildSidebarNav(user.role, hash);
+                window.updateNavCurrentPage(hash);
             }
+        };
 
-            // Mark active
-            const activeMap = { '#kasir': 'bnav-kasir', '#owner': 'bnav-owner', '#superadmin': 'bnav-superadmin' };
-            const activeId = activeMap[hash];
-            if (activeId) document.getElementById(activeId)?.classList.add('active');
+        window.buildSidebarNav = function(role, activeHash) {
+            const navContainer = document.getElementById('sidebar-nav-links');
+            if (!navContainer) return;
+
+            navContainer.innerHTML = PAGE_ITEMS
+                .filter(item => item.roles.includes(role))
+                .map(item => {
+                    const isActive = (window.location.hash || '#kasir') === item.hash;
+                    const colorMap = {
+                        indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+                        emerald: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+                        violet: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
+                    };
+
+                    let subTabsHTML = '';
+                    if (isActive && window.currentSubTabs.length > 0) {
+                        subTabsHTML = `
+                        <div class="mt-1.5 ml-8 space-y-0.5 border-l-2 border-indigo-100 dark:border-indigo-900/60 pl-2">
+                            ${window.currentSubTabs.map(sub => {
+                                if (sub.indent) {
+                                    // Sub-sub-menu: lebih menjorok, tampilan bullet
+                                    return `
+                                    <button onclick="${sub.onClick}; window.closeSidebarIfMobile();"
+                                            class="w-full flex items-center gap-2 pl-4 pr-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-left ${sub.active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-700 dark:hover:text-gray-300'}">
+                                        <span class="w-1.5 h-1.5 rounded-full shrink-0 ${sub.active ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'}"></span>
+                                        <span>${sub.icon}</span>
+                                        <span class="truncate">${sub.label}</span>
+                                    </button>`;
+                                }
+                                return `
+                                <button onclick="${sub.onClick}; window.closeSidebarIfMobile();"
+                                        class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-left ${sub.active ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'}">
+                                    <span>${sub.icon}</span>
+                                    <span class="truncate">${sub.label}</span>
+                                </button>`;
+                            }).join('')}
+                        </div>
+                        `;
+                    }
+
+                    return `
+                    <div class="space-y-0.5">
+                        <a href="${item.hash}" onclick="window.closeSidebarIfMobile()"
+                           class="sidebar-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent transition-all hover:bg-gray-50 dark:hover:bg-gray-800 group ${isActive ? 'active-page' : ''}">
+                            <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition ${colorMap[item.color]}">
+                                ${item.icon}
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold text-gray-900 dark:text-white leading-tight">${item.label}</p>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-500 leading-tight">${item.subtitle}</p>
+                            </div>
+                            ${isActive ? '<svg class="ml-auto w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>' : ''}
+                        </a>
+                        ${subTabsHTML}
+                    </div>`;
+                }).join('');
+        };
+
+        // ── Update sidebar user info ─────────────────────────────────────────────
+        function updateSidebarUser(user) {
+            const nameEl   = document.getElementById('sidebar-user-name');
+            const roleEl   = document.getElementById('sidebar-user-role');
+            const avatarEl = document.getElementById('sidebar-user-avatar');
+            if (!nameEl) return;
+            nameEl.textContent   = user.name;
+            avatarEl.textContent = (user.name[0] || 'U').toUpperCase();
+            const roleLabels = { cashier: '🛒 Kasir', owner: '📊 Owner', superadmin: '⚡ Super Admin' };
+            roleEl.textContent = roleLabels[user.role] || user.role;
         }
 
+        // ── Update current page label in top nav (mobile) ───────────────────────
+        window.updateNavCurrentPage = function(hash) {
+            const labelEl = document.getElementById('nav-current-page');
+            if (!labelEl) return;
+            const pageLabels = { '#kasir': '🛒 Kasir', '#owner': '📊 Owner', '#superadmin': '⚡ Super Admin' };
+            let label = pageLabels[hash] || '';
+            const activeSub = (window.currentSubTabs || []).find(s => s.active);
+            labelEl.textContent = label;
+        };
+
+        // Helper: close sidebar only on mobile (desktop keeps it open across navigation)
+        window.closeSidebarIfMobile = function() {
+            if (!isDesktop()) window.closeAppSidebar();
+        };
+
+        // ── Router ──────────────────────────────────────────────────────────────
         function router() {
+            window.currentSubTabs = []; // Reset sub-tabs on route change
             const user = getUserSession();
             const hash = window.location.hash || '#kasir';
             container.innerHTML = '';
+            // On desktop keep sidebar open; on mobile close it
+            if (!isDesktop()) window.closeAppSidebar();
 
             if (!user) {
                 nav.classList.add('hidden');
-                bottomNav.classList.add('hidden');
-                document.body.classList.remove('has-bottom-nav');
+                window.closeAppSidebar(); // Always close sidebar on logout/login screen
                 loginView.render(container, (userData) => {
                     sessionStorage.setItem('pos_user', JSON.stringify(userData));
                     if (userData.role === 'superadmin') window.location.hash = '#superadmin';
@@ -369,30 +661,18 @@
 
             // Show nav
             nav.classList.remove('hidden');
-            bottomNav.classList.remove('hidden');
-            document.body.classList.add('has-bottom-nav');
 
+            // Update badges
             const badgeText = `${user.name} · ${user.role.toUpperCase()}`;
             userBadge.innerText = badgeText;
-            userBadgeMobile.innerText = user.name;
 
-            // Desktop nav links
-            const navOwner      = document.getElementById('nav-owner');
-            const navCashier    = document.getElementById('nav-cashier');
-            const navSuperAdmin = document.getElementById('nav-superadmin');
-            [navOwner, navCashier, navSuperAdmin].forEach(el => el.classList.add('hidden'));
+            // Update sidebar
+            updateSidebarUser(user);
+            window.buildSidebarNav(user.role, hash);
+            window.updateNavCurrentPage(hash);
 
-            if (user.role === 'superadmin') {
-                navSuperAdmin.classList.remove('hidden');
-                navOwner.classList.remove('hidden');
-                navCashier.classList.remove('hidden');
-            } else if (user.role === 'owner') {
-                navOwner.classList.remove('hidden');
-                navCashier.classList.remove('hidden');
-            }
 
-            updateBottomNav(hash, user.role);
-
+            // Route
             if (hash === '#superadmin') {
                 if (user.role !== 'superadmin') {
                     alert('Akses Ditolak! Halaman ini hanya untuk Super Admin.');
@@ -412,15 +692,19 @@
             }
         }
 
-        document.getElementById('btn-logout').onclick = async function() {
-            // Catat jam keluar otomatis (fungsi didefinisikan di login.js)
+        // ── Logout handlers ─────────────────────────────────────────────────────
+        async function doLogout() {
             if (typeof window.recordLogoutAttendance === 'function') {
                 await window.recordLogoutAttendance();
             }
             sessionStorage.removeItem('pos_user');
+            window.closeAppSidebar();
             window.location.hash = '#login';
             router();
-        };
+        }
+
+        document.getElementById('btn-logout').onclick = doLogout;
+        document.getElementById('sidebar-logout-btn').onclick = doLogout;
 
         window.addEventListener('hashchange', router);
         window.addEventListener('load', router);
