@@ -1,0 +1,21 @@
+{
+  "short_name": "Mvape PoS",
+  "name": "Smart Point of Sale PWA",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/index.html",
+  "background_color": "#4F46E5",
+  "theme-color": "#4F46E5",
+  "display": "standalone",
+  "orientation": "portrait"
+}

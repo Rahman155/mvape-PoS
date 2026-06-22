@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Mvape Kasir</title>
+    <link rel="manifest" href="manifest.json">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+
+        /* Smooth transitions globally */
+        button, a, input, select, textarea {
+            transition: all 0.15s ease;
+        }
+
+        /* Better tap targets on mobile */
+        button { min-height: 44px; }
+
+        /* Scrollbar hide utility */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Bottom safe area for iOS */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+        /* Micro-animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .animate-fadeInUp  { animation: fadeInUp  0.3s ease forwards; }
+        .animate-fadeIn    { animation: fadeIn     0.2s ease forwards; }
+        .animate-slideInRight { animation: slideInRight 0.25s ease forwards; }
+        .animate-scaleIn   { animation: scaleIn    0.2s ease forwards; }
+
+        /* Active press effect */
+        .btn-press:active { transform: scale(0.96); }
+
+        /* Tab active indicator */
+        .tab-active-glow { box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+
+        /* Glass card */
+        .glass {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Custom scrollbar for desktop */
+        @media (min-width: 768px) {
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+            ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        }
+
+        /* Bottom nav */
+        #bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 40;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid #f3f4f6;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* Dark mode bottom nav */
+        @media (prefers-color-scheme: dark) {
+            #bottom-nav {
+                background: rgba(17,24,39,0.95);
+                border-top-color: #1f2937;
+            }
+        }
+
+        /* Content padding for bottom nav */
+        body.has-bottom-nav main#app-container {
+            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printable-receipt, #printable-receipt * { visibility: visible; }
+            #printable-receipt {
+                position: absolute; left: 0; top: 0;
+                width: 100%; margin: 0; padding: 10px;
+                box-shadow: none !important; border: none !important;
+            }
+            .print-hidden { display: none !important; }
+            #bottom-nav, #main-nav { display: none !important; }
+        }
+
+        /* Input focus glow */
+        input:focus, select:focus, textarea:focus {
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+
+        /* Card hover lift */
+        .card-hover {
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Badge pulse */
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .badge-pulse { animation: pulse-soft 2s infinite; }
+
+        /* Number spinner hide */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* Modal backdrop blur */
+        .modal-backdrop {
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        /* Ripple effect for buttons */
+        .ripple { position: relative; overflow: hidden; }
+        .ripple::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: scale(0);
+            animation: ripple-effect 0.4s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-effect {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* Skeleton loading */
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 antialiased text-gray-900 dark:text-white">
+
+    <!-- ===== TOP NAVIGATION ===== -->
+    <nav id="main-nav" class="hidden sticky top-0 z-30">
+        <div class="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+                <!-- Brand -->
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-200">M</div>
+                    <div>
+                        <span class="font-extrabold text-gray-900 dark:text-white text-sm tracking-tight">Mvape</span>
+                        <span class="font-extrabold text-indigo-600 text-sm"> Kasir</span>
+                    </div>
+                    <span id="user-badge" class="hidden sm:inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800"></span>
+                </div>
+
+                <!-- Desktop Nav Links -->
+                <div class="hidden md:flex items-center gap-1">
+                    <a id="nav-superadmin" href="#superadmin" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 hover:bg-violet-200 transition">⚡ Super Admin</a>
+                    <a id="nav-cashier" href="#kasir" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">🛒 Kasir</a>
+                    <a id="nav-owner" href="#owner" class="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">📊 Owner</a>
+                </div>
+
+                <!-- Right: Badge (mobile) + Logout -->
+                <div class="flex items-center gap-2">
+                    <span id="user-badge-mobile" class="sm:hidden text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 max-w-[80px] truncate"></span>
+                    <button id="btn-logout" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/60 transition border border-red-100 dark:border-red-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        <span class="hidden sm:inline">Keluar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== BOTTOM MOBILE NAV ===== -->
+    <nav id="bottom-nav" class="hidden md:hidden">
+        <div class="flex items-center justify-around px-2 pt-2 pb-1">
+            <a id="bnav-kasir" href="#kasir" class="bnav-item flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
+                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-indigo-600">Kasir</span>
+            </a>
+            <a id="bnav-owner" href="#owner" class="bnav-item hidden flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
+                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-indigo-600">Owner</span>
+            </a>
+            <a id="bnav-superadmin" href="#superadmin" class="bnav-item hidden flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition group">
+                <svg class="w-5 h-5 text-gray-400 group-[.active]:text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span class="text-[10px] font-bold text-gray-400 group-[.active]:text-violet-600">Admin</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="app-container" class="max-w-7xl mx-auto px-3 py-4 md:px-6 md:py-6 min-h-screen"></main>
+
+    <!-- ===== APP MODALS ===== -->
+    <div id="app-modal-root"></div>
+    <script>
+        window.showAppAlert = function(message, title = 'Informasi') {
+            const root = document.getElementById('app-modal-root');
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn';
+            overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            overlay.style.backdropFilter = 'blur(4px)';
+            
+            overlay.innerHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden transform transition-all animate-fadeInUp">
+                    <div class="p-5 flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-lg">💡</div>
+                            <h3 class="font-bold text-gray-900 dark:text-white">${title}</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">${String(message).replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                        <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-bold rounded-xl transition shadow-sm w-full sm:w-auto" onclick="this.closest('.fixed').remove()">Mengerti</button>
+                    </div>
+                </div>
+            `;
+            root.appendChild(overlay);
+        };
+
+        window.showAppConfirm = function(message, onConfirm, title = 'Konfirmasi') {
+            const root = document.getElementById('app-modal-root');
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn';
+            overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            overlay.style.backdropFilter = 'blur(4px)';
+            
+            let icon = '⚠️';
+            let iconColor = 'orange';
+            let btnClass = 'bg-indigo-600 hover:bg-indigo-700';
+            let btnText = 'Ya, Lanjutkan';
+            
+            if (message.toLowerCase().includes('hapus') || message.toLowerCase().includes('batal')) {
+                iconColor = 'red';
+                btnClass = 'bg-red-600 hover:bg-red-700';
+                if(message.toLowerCase().includes('hapus')) btnText = 'Ya, Hapus';
+            }
+            
+            overlay.innerHTML = `
+                <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden transform transition-all animate-fadeInUp">
+                    <div class="p-5 flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-${iconColor}-100 dark:bg-${iconColor}-900/50 flex items-center justify-center text-${iconColor}-600 dark:text-${iconColor}-400 text-lg">${icon}</div>
+                            <h3 class="font-bold text-gray-900 dark:text-white">${title}</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">${String(message).replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
+                        <button class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 text-sm font-bold rounded-xl transition w-full sm:w-auto" onclick="this.closest('.fixed').remove()">Batal</button>
+                        <button id="btn-confirm" class="px-4 py-2 ${btnClass} active:scale-95 text-white text-sm font-bold rounded-xl transition shadow-sm w-full sm:w-auto">${btnText}</button>
+                    </div>
+                </div>
+            `;
+            overlay.querySelector('#btn-confirm').onclick = () => {
+                overlay.remove();
+                if (onConfirm) onConfirm();
+            };
+            root.appendChild(overlay);
+        };
+        
+        window.alert = function(msg) { window.showAppAlert(msg); };
+    </script>
+
+    <script type="module">
+        import loginView from './js/views/login.js';
+        import cashierView from './js/views/cashier.js';
+        import ownerView from './js/views/owner.js';
+        import superAdminView from './js/views/superadmin.js';
+
+        const container = document.getElementById('app-container');
+        const nav       = document.getElementById('main-nav');
+        const bottomNav = document.getElementById('bottom-nav');
+        const userBadge        = document.getElementById('user-badge');
+        const userBadgeMobile  = document.getElementById('user-badge-mobile');
+
+        function getUserSession() {
+            const s = sessionStorage.getItem('pos_user');
+            return s ? JSON.parse(s) : null;
+        }
+
+        function updateBottomNav(hash, role) {
+            // Show/hide bottom nav items
+            const bKasir  = document.getElementById('bnav-kasir');
+            const bOwner  = document.getElementById('bnav-owner');
+            const bAdmin  = document.getElementById('bnav-superadmin');
+
+            [bKasir, bOwner, bAdmin].forEach(el => el.classList.add('hidden'));
+            [bKasir, bOwner, bAdmin].forEach(el => el.classList.remove('active'));
+
+            if (role === 'superadmin') {
+                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
+                bOwner.classList.remove('hidden'); bOwner.classList.add('flex');
+                bAdmin.classList.remove('hidden'); bAdmin.classList.add('flex');
+            } else if (role === 'owner') {
+                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
+                bOwner.classList.remove('hidden'); bOwner.classList.add('flex');
+            } else {
+                bKasir.classList.remove('hidden'); bKasir.classList.add('flex');
+            }
+
+            // Mark active
+            const activeMap = { '#kasir': 'bnav-kasir', '#owner': 'bnav-owner', '#superadmin': 'bnav-superadmin' };
+            const activeId = activeMap[hash];
+            if (activeId) document.getElementById(activeId)?.classList.add('active');
+        }
+
+        function router() {
+            const user = getUserSession();
+            const hash = window.location.hash || '#kasir';
+            container.innerHTML = '';
+
+            if (!user) {
+                nav.classList.add('hidden');
+                bottomNav.classList.add('hidden');
+                document.body.classList.remove('has-bottom-nav');
+                loginView.render(container, (userData) => {
+                    sessionStorage.setItem('pos_user', JSON.stringify(userData));
+                    if (userData.role === 'superadmin') window.location.hash = '#superadmin';
+                    else if (userData.role === 'owner') window.location.hash = '#owner';
+                    else window.location.hash = '#kasir';
+                    router();
+                });
+                return;
+            }
+
+            // Show nav
+            nav.classList.remove('hidden');
+            bottomNav.classList.remove('hidden');
+            document.body.classList.add('has-bottom-nav');
+
+            const badgeText = `${user.name} · ${user.role.toUpperCase()}`;
+            userBadge.innerText = badgeText;
+            userBadgeMobile.innerText = user.name;
+
+            // Desktop nav links
+            const navOwner      = document.getElementById('nav-owner');
+            const navCashier    = document.getElementById('nav-cashier');
+            const navSuperAdmin = document.getElementById('nav-superadmin');
+            [navOwner, navCashier, navSuperAdmin].forEach(el => el.classList.add('hidden'));
+
+            if (user.role === 'superadmin') {
+                navSuperAdmin.classList.remove('hidden');
+                navOwner.classList.remove('hidden');
+                navCashier.classList.remove('hidden');
+            } else if (user.role === 'owner') {
+                navOwner.classList.remove('hidden');
+                navCashier.classList.remove('hidden');
+            }
+
+            updateBottomNav(hash, user.role);
+
+            if (hash === '#superadmin') {
+                if (user.role !== 'superadmin') {
+                    alert('Akses Ditolak! Halaman ini hanya untuk Super Admin.');
+                    window.location.hash = user.role === 'owner' ? '#owner' : '#kasir';
+                    return;
+                }
+                superAdminView.render(container);
+            } else if (hash === '#kasir') {
+                cashierView.render(container);
+            } else if (hash === '#owner') {
+                if (user.role !== 'owner' && user.role !== 'superadmin') {
+                    alert('Akses Ditolak! Halaman ini hanya untuk Owner.');
+                    window.location.hash = '#kasir';
+                    return;
+                }
+                ownerView.render(container);
+            }
+        }
+
+        document.getElementById('btn-logout').onclick = async function() {
+            // Catat jam keluar otomatis (fungsi didefinisikan di login.js)
+            if (typeof window.recordLogoutAttendance === 'function') {
+                await window.recordLogoutAttendance();
+            }
+            sessionStorage.removeItem('pos_user');
+            window.location.hash = '#login';
+            router();
+        };
+
+        window.addEventListener('hashchange', router);
+        window.addEventListener('load', router);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
+        }
+    </script>
+</body>
+</html>
