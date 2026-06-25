@@ -241,6 +241,7 @@ const db = {
   shifts:          makeTable('shifts'),          // Sistem Shift: Jadwal shift karyawan
   attendances:     makeTable('attendances'),     // Sistem Shift: Records kehadiran/absensi
   shiftSchedules:  makeTable('shiftSchedules'),  // Sistem Shift: Template jadwal mingguan/bulanan
+  categories:      makeTable('categories'),      // Kategori produk (dinamis)
 };
 
 // ─── 6. SEED DATA AWAL (hanya jika koleksi masih kosong) ────────────────────
@@ -278,9 +279,20 @@ async function seedIfEmpty() {
       await db.settings.add({ id: 'login_logo', value: '' });
     }
 
+    // Seed kategori produk default
+    const catCount = await db.categories.count();
+    if (catCount === 0) {
+      await db.categories.bulkAdd([
+        { id: 'cat-1', name: 'Liquid',       icon: '💧', color: '#6366f1' },
+        { id: 'cat-2', name: 'Device',       icon: '🔧', color: '#8b5cf6' },
+        { id: 'cat-3', name: 'Atomizer',     icon: '⚙️', color: '#ec4899' },
+        { id: 'cat-4', name: 'Accessories',  icon: '🎒', color: '#f59e0b' },
+      ]);
+      console.log('[DB] ✅ Seed kategori default berhasil.');
+    }
+
     // Seed data toko awal
-    const storesCount = await db.stores.count();
-    if (storesCount === 0) {
+    const storesCount = await db.stores.count();    if (storesCount === 0) {
       await db.stores.bulkAdd([
         { 
           id: "toko1", 
